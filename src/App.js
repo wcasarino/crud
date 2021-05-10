@@ -1,6 +1,6 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { isEmpty, size } from "lodash";
-import { nanoid } from "nanoid";
+import { addDocument, getCollection, updateDocument, deleteDocument } from "./actions";
 
 function App() {
   const [task, setTask] = useState("");
@@ -8,6 +8,15 @@ function App() {
   const [editMode, setEditMode] = useState(false)
   const [id, setId] = useState("")
   const [error, setError] = useState(null)
+
+  useEffect(() => {
+    (async () => {
+      const result = await getCollection("Tareas")
+      if (result.statusResponse) {
+        setTasks(result.data)
+      }
+    }) ()
+  }, [])
 
     const validFrom = () => {
       let isValid = true
@@ -22,20 +31,26 @@ function App() {
     }
  
 
-  const addTask = (e) => {
+  const addTask = async (e) => {
     e.preventDefault();
     if (!validFrom()) {
       return
     }
-    const newTask = {
-      id: nanoid(),
-      name: task,
-    };
-    setTasks([...tasks, newTask]);
+    const result = await addDocument("Tareas", {name : task})
+    if(!result.statusResponse) {
+      setError(result.error)
+      return
+    }
+    setTasks([...tasks, {id: result.data.id, name: task}]);
     setTask("");
   };
 
-  const deleteTask = (id) => {
+  const deleteTask = async (id) => {
+    const result = await deleteDocument("Tareas", id)
+    if(!result.statusResponse) {
+      setError(result.error)
+      return
+    }
     const filterTask = tasks.filter((task) => task.id !== id);
     setTasks(filterTask);
   };
@@ -46,11 +61,19 @@ function App() {
     setId(theTask.id)
   }
 
-  const saveTask = (e) => {
+  const saveTask = async (e) => {
     e.preventDefault();
     if (!validFrom()) {
       return
     }
+
+    const result = await updateDocument("Tareas", id, {name: task})
+
+    if (!result.statusResponse) {
+      setError(result.error)
+      return
+    }
+
     const editedTasks = tasks.map(item => item.id === id ? {id, name: task} : item)
     setTasks(editedTasks)
     setEditMode(false)
